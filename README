@@ -1,0 +1,120 @@
+
+This is `SkyCoverage' version 20051216,
+by Diego Casadei (https://sites.google.com/view/diego-casadei)
+
+For a full explanation, please refer to:
+D. Casadei,
+`Sky coverage of orbital detectors.  Analytical approach',
+arXiv:astro-ph/0511674 (https://arxiv.org/abs/astro-ph/0511674)
+
+
+Usage:
+        SkyCoverage ct_div phi_div file [params]
+where:
+        ct_div  = number of bins in cos(theta);
+        phi_div = number of bins in phi;
+        file    = output file name;
+        params  = (optional) file with orbit parameters.
+        If params is not given, orbit parameters will be asked and saved into
+        a file named `orbit-params.dat', which can be used later.
+
+As an example:
+
+$ cat orbit-params.dat
+cone half-aperture angle (deg):          25
+orbit inclination (deg):               51.6
+orbit period (minutes):                  90
+precession period (days):                60
+mission duration (days):               1000
+first Euler angle (deg):                -33
+second Euler angle (deg):              62.6
+third Euler angle (deg):             -77.75
+
+The output file will contain a table of values which are the exposure
+(in min) of the corresponding histogram bin.  The format is "%15.7f "
+for the C/C++ fscanf(...) function, or FORMAT(10000(g15.7,1x)) for
+FORTRAN77 programs.  Each row represent has a constant value of
+cos(theta), and different columns have different values of phi.
+
+The first Euler's angle is the rotation about the third axis, which
+transform the first axis in the `line of nodes'; the second angle is a
+rotation about the line of nodes, which moves the third axis in the
+final position; the third angle is a rotation about the new third
+axis, which transforms the line of nodes into the final first axis
+(see http://mathworld.wolfram.com/EulerAngles.html).
+
+If the precession period is zero, no precession is computed and the
+single orbit histogram is written on file.  If all Euler's angles are
+null, the result will refer to the PRS; otherwise to the GRS.
+
+
+
+SkyCoverage loops over the (phi_div x ct_div) histogram of cos(theta)
+VS phi in the GRS.  For each bin, it finds the corresponding bin in
+the PRS using an Euler's rotation (three angles must be given), then
+applies formula (11) to compute the effect of the orbit precession.
+To get the histogram in the PRS, simply give three null rotation
+angles to the program.
+
+This effect is taken into account by considerig, for every PRS bin,
+the sum of the number of histogram rotations computed using the
+mission duration, the precession period and the revolution period
+(which are to be given as input parameters).
+
+
+
+Source code (requires a C++ compiler):
+
+  SkyCoverage.C      - the main file
+
+  ChangeRefSys.C     - performs an Euler's rotation
+
+  ExposureTime.C     - computes the exposure taking into account orbit
+		       precession.  It calls ExposureFraction()
+
+  ExposureFraction.C - computes the exposure in units of the
+		       revolution period.  Change this file to
+		       implement the real detector acceptance.
+
+
+
+Compiling the source:
+
+1) get the latest archive from
+   https://github.com/dcasadei/SkyCoverage
+
+2) type 'make' to get the following instructions:
+
+  make all           # produces SkyCoverage
+  make clean         # deletes object files
+  make cleanall      # deletes objects and executable
+  make dist          # produces the SkyCoverage200XXXXX.tgz archive
+
+3) type 'make all' to get the 'SkyCoverage' executable in the current
+   directory.
+
+Please, note that the Makefile is for a Linux system with the GNU C++
+compiler.  It should be easy to adapt it to any other system
+(including non Unix-like systems) as long as they support the GNU make
+utility.  No additional library is required.
+
+
+
+History of changes: 
+
+('!' = bug fix, '+' = added feature, '-' = omitted feature)
+
+
+* from v. 20051123 to 20051216:
+
+   ! Euler's angles converted to radians;
+
+   ! performing histogram rotations, the first column was not counted
+     (usually a negligible error).  Now it is;
+
+   + now a null precession period means "I want the single orbit
+     fractional exposure map" (figure 6 of the paper);
+
+   + Euler angles are no more limited to [0, 360].  Now they can be
+     any floating point (`double' C type) number: the program computes
+     the mod (angle, 360) as the first step.
